@@ -116,7 +116,6 @@ int main(int argc, char **args)
         gettimeofday(&after, NULL);
 
         double tdiff = time_diff(before, after);
-        cout << " tdiff " << tdiff << endl;
         long double sp = ((double)fsize / 1024 / 1024) / (tdiff / 1000000.0);
         cout << " Скорость записи:" << sp << " мегабайт в секунду \n";
     }
@@ -176,7 +175,7 @@ int main(int argc, char **args)
             static int prev_progress = 0;
             int pprogress = (int)(1000 * (float)i / (float)count_bl);
 
-            if (pprogress != prev_progress)
+            if (pprogress/10 != prev_progress/10)
                 cout << "prgs = " << pprogress / 10 << endl;
             prev_progress = pprogress;
         }
@@ -184,7 +183,6 @@ int main(int argc, char **args)
         gettimeofday(&after, NULL);
 
         double tdiff = time_diff(before, after);
-        cout << " tdiff " << tdiff << endl;
         long double sp = ((double)fsize / 1024 / 1024) / (tdiff / 1000000.0);
         cout << " Скорость чтения:" << sp << " мегабайт в секунду \n";
     }
@@ -194,14 +192,17 @@ int main(int argc, char **args)
     cout << "\n\n  count_errors " << count_errors << endl;
     cout << " количество ошибочных байтов: " << count_err_bytes << "(" << count_err_bytes / 1024 / 1024 << ")MB" << endl;
 
-    ofstream log;
-    log.open("disklog.txt");
-    if (log.is_open())
-    {
-        for (auto it : eraddr)
-        {
-            log << it << endl;
-        }
-        log.close();
-    }
+    if(eraddr.size()>0)
+    { 
+      ofstream log;
+      log.open("disklog.txt");
+      if (log.is_open())
+      {
+         for (auto it : eraddr)
+         {
+             log << it << endl;
+         }
+         log.close();
+      }
+    }  
 }
