@@ -102,10 +102,9 @@ int main(int argc, char **args)
                 cout << " rd sz =" << rd_sz << endl;
                 cout << " rd pos =" << fdisk.tellg() << endl;
             }
-            //fdisk.seekg(-1 * (int)rd_sz ,ios_base::cur);
+            
             if (pos == fsize - rd_sz)
                 break;
-            //fdisk.seekp(pos,ios_base::beg);
             progress = (double)pos / (double)fsize;
 
             if (iter_cnt % 10000 == 0)
@@ -142,12 +141,12 @@ int main(int argc, char **args)
             static auto v = readed_data[10];
 
             int afres = std::accumulate(readed_data, &readed_data[sizeof(readed_data) / sizeof(readed_data[0])], 0);
+#if 0
             if (0 == i)
             {
-
-                //  cout<<" start val = "<<v<<" afres "<<afres<<endl;
+               cout<<" start val = "<<v<<" afres "<<afres<<endl;
             }
-
+#endif
             std::fill(&test_data[0], &test_data[sizeof(test_data) / sizeof(test_data[0])], v);
             int test_res = std::accumulate(test_data, &test_data[sizeof(test_data) / sizeof(test_data[0])], 0);
             if (test_res != afres)
@@ -159,9 +158,7 @@ int main(int argc, char **args)
                 {
                     if (readed_data[c] != test_data[c])
                     {
-                        // cout<<readed_data[c]<<"!="<<test_data[c]<<"["<<c<<"] ";
                         eraddr.push_back((i * sizeof(test_data)) + c);
-
                         lecount++;
                         count_err_bytes++;
                     }
