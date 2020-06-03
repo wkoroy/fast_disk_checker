@@ -26,6 +26,8 @@
 
 using namespace std;
 
+// #define DIRTY_TEST
+
 double time_diff(struct timeval x, struct timeval y)
 {
     double x_ms, y_ms, diff;
@@ -110,8 +112,8 @@ int main(int argc, char **args)
         fdisk.seekg(0, ios_base::end);
         pos = fdisk.tellp();
 
-        //  fsize = 2000000000;
         fsize = pos;
+        // fsize = 1*1024*1024*1024; // для быстрого тестирования
 
         cout << " ВЫ ДЕЙСТВИТЕЛЬНО ХОТИТЕ ЗАПУСТИТЬ ТЕСТ ДИСКА " << args[1] << " " << (pos / 1024 / 1024 / 1024) << "GB  ?\n"
              << " ВСЕ ДАННЫЕ БУДУТ УДАЛЕНЫ! СТЕРЕТЬ? (y/n) ?";
@@ -142,12 +144,17 @@ int main(int argc, char **args)
             fill_vall++;
             std::fill(&test_data[0], &test_data[sizeof(test_data) / sizeof(test_data[0])], fill_vall);
             std::fill(&readed_data[0], &readed_data[sizeof(readed_data) / sizeof(readed_data[0])], 0);
+#ifdef DIRTY_TEST
+           if(iter_cnt == 22 ||  iter_cnt == 62) test_data[16] = test_data[16]+1; 
+#endif            
             ostream &res = fdisk.write((char *)test_data, sizeof(test_data));
             if (!res.good())
                 cout << "error wr in " << pos << endl;
 
             pos = fdisk.tellp();
             fdisk.flush();
+            fdisk.sync();
+            
 
             auto rd_sz = sizeof(test_data);
             if (pos == fsize && fsize % sizeof(test_data))
