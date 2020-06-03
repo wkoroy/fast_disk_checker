@@ -15,6 +15,17 @@
 
 
 #include <sys/time.h>
+
+
+#include <fcntl.h>
+#include <linux/kd.h>
+#include <sys/ioctl.h>
+#include <fcntl.h>
+#include <unistd.h>
+#include <string.h>
+
+using namespace std;
+
 double time_diff(struct timeval x, struct timeval y)
 {
     double x_ms, y_ms, diff;
@@ -27,9 +38,48 @@ double time_diff(struct timeval x, struct timeval y)
     return diff;
 }
 
+
+// примонтированно ли устройство
+static bool dev_is_mounted(const char *dev_path) 
+{
+	FILE *fmnt = fopen("/proc/mounts", "r");
+	if(fmnt)
+	{
+		size_t dl = strlen(dev_path);
+		char str[1024*10]{'\0'};
+		while(!feof(fmnt))
+		{
+			fgets(str , sizeof(str)-1,fmnt);
+			if( strncmp(dev_path,str,dl ) == 0 ) return true;
+		}
+		return false;
+	}
+	else
+	{
+		cout<< (" ERROR open /proc/mounts !!! \n");
+	}
+	// в случае ошибки лучше сообщить о том, что устройство как-бы примонтировано  - тогда точно не сотрется ОС
+	return true;
+}
+
+
+void usr_notify()
+{
+    system("modprobe pcspkr;"); // загрузить драйвер пищалки
+    int fd = open("/dev/console", O_WRONLY);
+    ioctl(fd, KIOCSOUND, (int)(1193180 / (4 * 150)));
+    cout << "\n для завершения удерживайте Enter\n";
+    cin.get();
+    cin.get();
+    cin.get();
+    cin.get();
+    //usleep(300000*2);
+    ioctl(fd, KIOCSOUND, 0);
+}
+
 //  g++-4.9 -msse -g -o  fast_disk_checker  fast_disk_checker.cpp  -std=c++14 -lpthread ;
 
-using namespace std;
+
 double progress = 0.0;
 uint64_t count_errors = 0;
 uint64_t count_err_bytes = 0;
@@ -43,10 +93,15 @@ int main(int argc, char **args)
     uint64_t readed_data[8 * 1024];
     if (argc < 2)
     {
-        cout << "using: fast_disk_checker FILEPATH\n";
+        cout << "using: fast_disk_checker DISKPATH(i.e /dev/sdb)\n";
         return 0;
     }
-
+    
+    if(dev_is_mounted(args[1]))
+    {
+        cout << "Ошибка. Диск "<<args[1]<<" примонтирован. "<<endl;
+        return 1;
+    }
     fstream fdisk;
     fdisk.open(args[1]);
     if (fdisk.is_open())
@@ -108,7 +163,7 @@ int main(int argc, char **args)
             progress = (double)pos / (double)fsize;
 
             if (iter_cnt % 10000 == 0)
-                cout << "progress: " << progress << endl;
+                cout << "write progress: " << (progress*100) <<" % "<< endl;
 
         } while (pos < fsize - sizeof(readed_data));
 
@@ -126,7 +181,7 @@ int main(int argc, char **args)
     fdisk.open(args[1]);
     if (fdisk.is_open())
     {
-        uint64_t count_bl = fsize / sizeof(readed_data);
+        uint64_t count_bl = (fsize - sizeof(readed_data)) / sizeof(readed_data);
 
         cout << " Количество записей = " << count_bl << endl;
         gettimeofday(&before, NULL);
@@ -136,11 +191,11 @@ int main(int argc, char **args)
             if (!res_read.good())
             {
                 count_errors++;
-                cout << ">>>>>system error rd in " << i << " block " << endl;
+                cout << ">>>>>read error rd in " << i << " block " << endl;
             }
             static auto v = readed_data[10];
 
-            int afres = std::accumulate(readed_data, &readed_data[sizeof(readed_data) / sizeof(readed_data[0])], 0);
+            uint64_t afres = std::accumulate(readed_data, &readed_data[sizeof(readed_data) / sizeof(readed_data[0])], (uint64_t) 0);
 #if 0
             if (0 == i)
             {
@@ -148,7 +203,7 @@ int main(int argc, char **args)
             }
 #endif
             std::fill(&test_data[0], &test_data[sizeof(test_data) / sizeof(test_data[0])], v);
-            int test_res = std::accumulate(test_data, &test_data[sizeof(test_data) / sizeof(test_data[0])], 0);
+            uint64_t test_res = std::accumulate(test_data, &test_data[sizeof(test_data) / sizeof(test_data[0])], (uint64_t)0);
             if (test_res != afres)
             {
                 cout << ">>>>> data error rd in " << i << " block " << endl;
@@ -173,7 +228,7 @@ int main(int argc, char **args)
             int pprogress = (int)(1000 * (float)i / (float)count_bl);
 
             if (pprogress/10 != prev_progress/10)
-                cout << "prgs = " << pprogress / 10 << endl;
+                cout << "check progress = " << pprogress / 10 << endl;
             prev_progress = pprogress;
         }
 
@@ -187,7 +242,10 @@ int main(int argc, char **args)
         cout << "open error !\n";
 
     cout << "\n\n  count_errors " << count_errors << endl;
-    cout << " количество ошибочных байтов: " << count_err_bytes << "(" << count_err_bytes / 1024 / 1024 << ")MB" << endl;
+    cout << " количество ошибочных байтов: " << count_err_bytes << "\n" << count_err_bytes / 1024 / 1024 << " MB нерабочего пространства" << endl;
+
+
+     usr_notify();
 
     if(eraddr.size()>0)
     { 
